@@ -1,29 +1,24 @@
+#include <Arduino.h>
 // Install AccelStepper: Tools > Manage libraries > Search for and install "AccelStepper"
 #include <AccelStepper.h>
 
-enum AnalogReferenceType { AREF_DEFAULT,
-                           AREF_INTERNAL,
-                           AREF_EXTERNAL };
+#define DEBUG 0
 
 // SETTINGS
 const int HOTEND_TEMP_DEGREES_C = 210;
-const int EXTRUDER_RPM = 120;  // rotations per minute of stepper
+const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
 
 // PINS
 
 // Comm pins
-const int DI_ROBOT_STEPPER_BACKWARDS_PIN = 6;
-const int DI_ROBOT_STEPPER_FORWARDS_PIN = 7;
+const int DI_ROBOT_RUN_FORWARD_PIN = 6;
+const int DI_ROBOT_RUN_BACKWARDS_PIN = 7;
 const int DI_ROBOT_HEAT_UP_PIN = 8;
-const int DO_ROBOT_TEMP_REACHED_PIN = A0;
-
-const int DO_24V_TO_5V_BOARD_PWR_PIN = 5;
-const int MOTOR_DRIVER_PWR_PIN = 10;
 
 // Stepper motor pins
-const int DO_NC_ENABLE_PIN = 3;  // ENA - Enable when 0, disable when 1
-const int DO_DIR_PIN = 11;       // DIR - Direction
-const int DO_STEP_PIN = 12;      // STP/PUL - Step, Pulse
+const int DO_NC_ENABLE_PIN = 10;  // ENA - Enable when 0, disable when 1
+const int DO_DIR_PIN = 11;        // DIR - Direction
+const int DO_STEP_PIN = 12;       // STP/PUL - Step, Pulse
 
 // hotend pins
 const int DO_HEATING_PIN = 2;
@@ -33,6 +28,10 @@ const int AI_THERMISTOR_PIN = A5;
 const long TEMP_CONTROL_INTERVAL_MILLIS = 2000;  // interval at which to check temperature
 
 const float THERMISTOR_SETUP_FIXED_R1_OHM = 100000.0;  // 100k Ohm reference resistor
+
+enum AnalogReferenceType { AREF_DEFAULT,
+                           AREF_INTERNAL,
+                           AREF_EXTERNAL };
 const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 
 // Obtained Steinhart-Hart values from:
@@ -48,15 +47,15 @@ const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04, SH_C = 0.7066084133e
 unsigned long g_previous_millis = 0;  // will store last time PRINT was updated
 
 // Hemera motor
-const float STEP_ANGLE = 1.8;
-const float GEAR_MULTIPLIER = 3.32;
-const int MICROSTEP_MULTIPLIER = 16;
-const bool INVERT_STEPPER_DIR = true;
+const float STEP_ANGLE_DEGREES = 1.8;
+const float GEAR_RATIO = 1 / 3.32;
+const int MICROSTEP_MULTIPLIER = 8;
+const bool STEPPER_INVERT_DIR = true;
+
+const int MAX_STEPS_PER_SEC = 3200;
 
 // Create a new instance of the AccelStepper class:
 AccelStepper g_stepper = AccelStepper(AccelStepper::DRIVER, DO_STEP_PIN, DO_DIR_PIN);
-
-// FUNCTIONS
 
 // Get the reference voltage based on the current analog reference type
 float getReferenceVoltage() {
@@ -102,48 +101,37 @@ float readThermistorTemperature() {
   return Tc;
 }
 
-float rpm2StepsPerSec(int rpm, float step_angle, int microstep_multiplier, float gear_multiplier) {
-  float steps_per_rev = 360 / step_angle;
+float rpm_to_steps_per_sec(float rpm, float step_angle_degrees, float microstep_multiplier = 1.0, float gear_ratio = 1.0) {
+  float steps_per_rev = 360.0 / step_angle_degrees;
 
-  float actual_steps_per_rev = steps_per_rev * microstep_multiplier * gear_multiplier;
-  float steps_per_min = rpm * actual_steps_per_rev;
+  steps_per_rev = steps_per_rev * microstep_multiplier;
+  steps_per_rev = steps_per_rev * gear_ratio;
 
-  return steps_per_min / 60.0;
+  float steps_per_min = rpm * steps_per_rev;
+
+  float steps_per_sec = steps_per_min / 60.;
+
+  return steps_per_sec;
 }
 
-const int STEPS_PER_SEC = round(rpm2StepsPerSec(EXTRUDER_RPM, STEP_ANGLE, MICROSTEP_MULTIPLIER, GEAR_MULTIPLIER));
+const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DEGREES, MICROSTEP_MULTIPLIER, GEAR_RATIO));
 
 void setup() {
   analogReference(ANALOG_REFERENCE_TYPE);
 
-  // Set the maximum speed in steps per second:
-  g_stepper.setMaxSpeed(3200);
-  g_stepper.setSpeed(0);
-
-  g_stepper.setPinsInverted(INVERT_STEPPER_DIR, false, false);
+  //g_stepper.setEnablePin(O_PIN_ENABLE);
+  g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR);
+  g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
 
   // Add pinMode for enable pin and set it to LOW to enable the stepper driver
   pinMode(DO_NC_ENABLE_PIN, OUTPUT);
   digitalWrite(DO_NC_ENABLE_PIN, LOW);
 
-  // Setup Thermistor
-  Serial.begin(9600);
-
-  // setup 24V to 5V board pwr
-  pinMode(DO_24V_TO_5V_BOARD_PWR_PIN, OUTPUT);
-  digitalWrite(DO_24V_TO_5V_BOARD_PWR_PIN, HIGH);
-
-  // set up motor driver pwr
-  pinMode(MOTOR_DRIVER_PWR_PIN, OUTPUT);
-  digitalWrite(MOTOR_DRIVER_PWR_PIN, HIGH);
 
   // setup robot input pin
-  pinMode(DI_ROBOT_STEPPER_BACKWARDS_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_STEPPER_FORWARDS_PIN, INPUT_PULLUP);
+  pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
+  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
   pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT_PULLUP);
-  // setup robot output pin
-  pinMode(DO_ROBOT_TEMP_REACHED_PIN, OUTPUT);
-  digitalWrite(DO_ROBOT_TEMP_REACHED_PIN, LOW);
 
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
@@ -154,14 +142,18 @@ void setup() {
   // led
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+
+#if DEBUG == 1
+  Serial.begin(9600);
+#endif
 }
 
 void loop() {
-  bool forwards = digitalRead(DI_ROBOT_STEPPER_FORWARDS_PIN) == HIGH;
-  //bool backwards_signal = digitalRead(DI_ROBOT_STEPPER_BACKWARDS_PIN) == HIGH;
-  bool backwards = false;
 
-  int direction = 0;
+  bool forwards = digitalRead(DI_ROBOT_RUN_FORWARD_PIN) == HIGH;
+  bool backwards = digitalRead(DI_ROBOT_RUN_BACKWARDS_PIN) == HIGH;
+
+  int direction = 0;  // Defaults to 0
 
   if (forwards && !backwards) {
     direction = 1;
@@ -169,21 +161,30 @@ void loop() {
     direction = -1;
   }
 
+
   g_stepper.setSpeed(STEPS_PER_SEC * direction);
 
-  g_stepper.runSpeed();  // Rotate the g_stepper motor
+  g_stepper.runSpeed();
+
+  bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
 
   // make sure that heater is off when signal is low
-  if (digitalRead(DI_ROBOT_HEAT_UP_PIN == LOW)) {
+  if (!heat_up) {
     digitalWrite(DO_HEATING_PIN, LOW);
-  } else { // if signal is high
+  } else {  // if signal is high
     unsigned long current_millis = millis();
+    
     // and enough time has passed since last check
-    if (current_millis - g_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) { 
+    if (current_millis - g_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
       g_previous_millis = current_millis;
 
       // Read the thermistor temperature
       float temperature = readThermistorTemperature();
+
+#if DEBUG == 1
+      Serial.print("T:");
+      Serial.println(temperature);
+#endif
 
       // TODO: Add PID controller and send PWM to MOSFET
       int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
