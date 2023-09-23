@@ -1,0 +1,11 @@
+name: fdm_3dp_setup
+channels:
+  - conda-forge
+  - nodefaults
+dependencies: # includes dev deps
+  - compas>=1.17.5
+  - compas_fab
+  - compas_rrc
+  - python>=3.10,<4
+  - ruff
+  - black
