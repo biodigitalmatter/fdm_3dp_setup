@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "lth2400_robban_io_wiring")(type "KiCad")(uri "${KIPRJMOD}/lth2400_robban_io_wiring/lth2400_robban_io_wiring.kicad_sym")(options "")(descr ""))
+  (lib (name "fdm_3dp_wiring")(type "KiCad")(uri "${KIPRJMOD}/fdm_3dp_wiring.kicad_sym")(options "")(descr ""))
+)
