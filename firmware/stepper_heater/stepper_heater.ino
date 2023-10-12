@@ -6,32 +6,39 @@
 
 // SETTINGS
 const int HOTEND_TEMP_DEGREES_C = 210;
-const int EXTRUDER_RPM = 60;  // rotations per minute of stepper
+const int EXTRUDER_RPM = 60;
 
 // PINS
 
 // Comm pins
-const int DI_ROBOT_RUN_FORWARD_PIN = 6;
-const int DI_ROBOT_RUN_BACKWARDS_PIN = 7;
-const int DI_ROBOT_HEAT_UP_PIN = 8;
+const int DI_ROBOT_HEAT_UP_PIN = 2;
+const int DI_ROBOT_RUN_BACKWARDS_PIN = 4;
+const int DI_ROBOT_RUN_FORWARD_PIN = 5;
 
 // Stepper motor pins
-const int DO_NC_ENABLE_PIN = 10;  // ENA - Enable when 0, disable when 1
-const int DO_DIR_PIN = 11;        // DIR - Direction
-const int DO_STEP_PIN = 12;       // STP/PUL - Step, Pulse
+const int DO_NC_ENABLE_PIN = 7;  // ENA - Enable when 0, disable when 1
+const int DO_DIR_PIN = 12;        // DIR - Direction
+const int DO_STEP_PIN = 11;       // STP/PUL - Step, Pulse
 
 // hotend pins
-const int DO_HEATING_PIN = 2;
-const int AI_THERMISTOR_PIN = A5;
+const int DO_HEATING_PIN = 9;
+const int DO_RELAY_PWR = 10;
+const int AI_THERMISTOR_PIN = A7;
+
+// LED
+const unsigned long LED_INTERVAL = 1000;  // interval at which to blink (milliseconds)
+unsigned long g_led_previous_millis = 0;
+int g_LED_blink_state = LOW;
 
 // THERMISTOR
 const long TEMP_CONTROL_INTERVAL_MILLIS = 2000;  // interval at which to check temperature
 
-const float THERMISTOR_SETUP_FIXED_R1_OHM = 100000.0;  // 100k Ohm reference resistor
+const float THERMISTOR_SETUP_FIXED_R1_OHM = 4700.0;  // 4k7 Ohm reference resistor
 
 enum AnalogReferenceType { AREF_DEFAULT,
                            AREF_INTERNAL,
-                           AREF_EXTERNAL };
+                           AREF_EXTERNAL
+                         };
 const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 
 // Obtained Steinhart-Hart values from:
@@ -44,8 +51,7 @@ const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 //   439.3          | 200
 const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04, SH_C = 0.7066084133e-07;
 
-unsigned long g_previous_millis = 0;  // will store last time PRINT was updated
-
+unsigned long g_temp_previous_millis = 0;
 // Hemera motor
 const float STEP_ANGLE_DEGREES = 1.8;
 const float GEAR_RATIO = 1 / 3.32;
@@ -127,6 +133,9 @@ void setup() {
   pinMode(DO_NC_ENABLE_PIN, OUTPUT);
   digitalWrite(DO_NC_ENABLE_PIN, LOW);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
 
   // setup robot input pin
   pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
@@ -136,6 +145,10 @@ void setup() {
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
   digitalWrite(DO_HEATING_PIN, LOW);
+
+  pinMode(DO_RELAY_PWR, OUTPUT);
+  digitalWrite(DO_RELAY_PWR, HIGH);
+
 
   pinMode(AI_THERMISTOR_PIN, INPUT);
 
@@ -153,30 +166,39 @@ void loop() {
   bool forwards = digitalRead(DI_ROBOT_RUN_FORWARD_PIN) == HIGH;
   bool backwards = digitalRead(DI_ROBOT_RUN_BACKWARDS_PIN) == HIGH;
 
-  int direction = 0;  // Defaults to 0
+  int signed_steps_per_sec = 0;  // Defaults to 0
 
   if (forwards && !backwards) {
-    direction = 1;
+    signed_steps_per_sec = 1 * STEPS_PER_SEC;
+    digitalWrite(LED_BUILTIN, HIGH);
   } else if (!forwards && backwards) {
-    direction = -1;
+    signed_steps_per_sec = -1 * STEPS_PER_SEC;
+    if (millis() - g_led_previous_millis >= LED_INTERVAL) {
+      g_led_previous_millis = millis();
+      g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
+      digitalWrite(LED_BUILTIN, g_LED_blink_state);
+    }
+  } else { // both false or both true
+    digitalWrite(LED_BUILTIN, LOW);
+    // don't touch speed
   }
 
-
-  g_stepper.setSpeed(STEPS_PER_SEC * direction);
+  g_stepper.setSpeed(signed_steps_per_sec);
 
   g_stepper.runSpeed();
 
-  bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
-
+  //bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
+  bool heat_up = true;
+  
   // make sure that heater is off when signal is low
   if (!heat_up) {
     digitalWrite(DO_HEATING_PIN, LOW);
   } else {  // if signal is high
     unsigned long current_millis = millis();
-    
+
     // and enough time has passed since last check
-    if (current_millis - g_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
-      g_previous_millis = current_millis;
+    if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
+      g_temp_previous_millis = millis();
 
       // Read the thermistor temperature
       float temperature = readThermistorTemperature();
