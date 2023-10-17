@@ -1,8 +1,18 @@
 #include <Arduino.h>
 // Install AccelStepper: Tools > Manage libraries > Search for and install "AccelStepper"
 #include <AccelStepper.h>
+// Install Controllino: Tools > Manage libraries > Search for and install "Controllino"
+// Install and target board: See https://www.controllino.com/wp-content/uploads/2023/07/CONTROLLINO-Instruction-Manual-V1.3-2023-05-15.pdf
+#include <Controllino.h>
 
-#define DEBUG 0
+
+//#define DEBUG
+
+//#define USE_STEPPER_ENABLE_PIN
+
+// Set motor
+//#define E3D_HEMERA
+#define MICRO_SWISS_DD
 
 // SETTINGS
 const int HOTEND_TEMP_DEGREES_C = 210;
@@ -11,21 +21,28 @@ const int EXTRUDER_RPM = 60;
 // PINS
 
 // Comm pins
-const int DI_ROBOT_HEAT_UP_PIN = 2;
-const int DI_ROBOT_RUN_BACKWARDS_PIN = 4;
-const int DI_ROBOT_RUN_FORWARD_PIN = 5;
+const int DI_ROBOT_HEAT_UP_PIN = CONTROLLINO_A3;
+const int DI_ROBOT_RUN_BACKWARDS_PIN = CONTROLLINO_A4;
+const int DI_ROBOT_RUN_FORWARD_PIN = CONTROLLINO_A5;
 
 // Stepper motor pins
-const int DO_NC_ENABLE_PIN = 7;  // ENA - Enable when 0, disable when 1
-const int DO_DIR_PIN = 12;        // DIR - Direction
-const int DO_STEP_PIN = 11;       // STP/PUL - Step, Pulse
+#ifdef USE_STEPPER_ENABLE_PIN
+const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01;  // ENA - Enable when 0, disable when 1
+#endif
+const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03;   // DIR - Direction
+const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02;  // STP/PUL - Step, Pulse
 
 // hotend pins
-const int DO_HEATING_PIN = 9;
-const int DO_RELAY_PWR = 10;
-const int AI_THERMISTOR_PIN = A7;
+const int DO_HEATING_PIN = CONTROLLINO_SCREW_TERMINAL_RELAY_04;
+const int AI_THERMISTOR_PIN = CONTROLLINO_PIN_HEADER_ANALOG_ADC_IN_00;
 
 // LED
+#ifdef Controllino_h
+const int DO_STEPPER_DEBUG_LED = CONTROLLINO_D0;
+#else
+const int DO_STEPPER_DEBUG_LED = LED_BUILTIN;
+#endif
+
 const unsigned long LED_INTERVAL = 1000;  // interval at which to blink (milliseconds)
 unsigned long g_led_previous_millis = 0;
 int g_LED_blink_state = LOW;
@@ -38,7 +55,7 @@ const float THERMISTOR_SETUP_FIXED_R1_OHM = 4700.0;  // 4k7 Ohm reference resist
 enum AnalogReferenceType { AREF_DEFAULT,
                            AREF_INTERNAL,
                            AREF_EXTERNAL
-                         };
+};
 const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 
 // Obtained Steinhart-Hart values from:
@@ -52,9 +69,19 @@ const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04, SH_C = 0.7066084133e-07;
 
 unsigned long g_temp_previous_millis = 0;
-// Hemera motor
+
 const float STEP_ANGLE_DEGREES = 1.8;
+
+#if defined(E3D_HEMERA) && defined(MICRO_SWISS_DD)
+#error "Only one motor configuration should be defined!"
+#elif defined(E3D_HEMERA)
 const float GEAR_RATIO = 1 / 3.32;
+#elif defined(MICRO_SWISS_DD)
+const float GEAR_RATIO = 1.0;
+#else
+#error "Please define a motor configuration!"
+#endif
+
 const int MICROSTEP_MULTIPLIER = 8;
 const bool STEPPER_INVERT_DIR = true;
 
@@ -125,38 +152,32 @@ const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DE
 void setup() {
   analogReference(ANALOG_REFERENCE_TYPE);
 
-  //g_stepper.setEnablePin(O_PIN_ENABLE);
+#ifdef USE_STEPPER_ENABLE_PIN
+  g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
+#endif
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR);
   g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
 
-  // Add pinMode for enable pin and set it to LOW to enable the stepper driver
-  pinMode(DO_NC_ENABLE_PIN, OUTPUT);
-  digitalWrite(DO_NC_ENABLE_PIN, LOW);
-
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
+  pinMode(DO_STEPPER_DEBUG_LED, OUTPUT);
+  digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
 
 
   // setup robot input pin
+  pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT_PULLUP);
   pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
   pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT_PULLUP);
 
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
   digitalWrite(DO_HEATING_PIN, LOW);
 
-  pinMode(DO_RELAY_PWR, OUTPUT);
-  digitalWrite(DO_RELAY_PWR, HIGH);
-
-
   pinMode(AI_THERMISTOR_PIN, INPUT);
 
   // led
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
+  pinMode(DO_STEPPER_DEBUG_LED, OUTPUT);
+  digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
 
-#if DEBUG == 1
+#ifdef DEBUG
   Serial.begin(9600);
 #endif
 }
@@ -170,16 +191,16 @@ void loop() {
 
   if (forwards && !backwards) {
     signed_steps_per_sec = 1 * STEPS_PER_SEC;
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(DO_STEPPER_DEBUG_LED, HIGH);
   } else if (!forwards && backwards) {
     signed_steps_per_sec = -1 * STEPS_PER_SEC;
     if (millis() - g_led_previous_millis >= LED_INTERVAL) {
       g_led_previous_millis = millis();
       g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
-      digitalWrite(LED_BUILTIN, g_LED_blink_state);
+      digitalWrite(DO_STEPPER_DEBUG_LED, g_LED_blink_state);
     }
-  } else { // both false or both true
-    digitalWrite(LED_BUILTIN, LOW);
+  } else {  // both false or both true
+    digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
     // don't touch speed
   }
 
@@ -187,9 +208,8 @@ void loop() {
 
   g_stepper.runSpeed();
 
-  //bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
-  bool heat_up = true;
-  
+  bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
+
   // make sure that heater is off when signal is low
   if (!heat_up) {
     digitalWrite(DO_HEATING_PIN, LOW);
@@ -203,7 +223,7 @@ void loop() {
       // Read the thermistor temperature
       float temperature = readThermistorTemperature();
 
-#if DEBUG == 1
+#ifdef DEBUG
       Serial.print("T:");
       Serial.println(temperature);
 #endif
