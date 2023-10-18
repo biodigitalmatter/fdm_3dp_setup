@@ -1,0 +1,12 @@
+---
+profiles:
+  controllino_mini:
+    fqbn: CONTROLLINO_Boards:avr:controllino_mini
+    platforms:
+      - platform: CONTROLLINO_Boards:avr (3.1.0)
+        platform_index_url: https://raw.githubusercontent.com/CONTROLLINO-PLC/CONTROLLINO_Library/master/Boards/package_ControllinoHardware_index.json
+      - platform: arduino:avr (1.8.6)
+    libraries:
+      - AccelStepper (1.64)
+      - CONTROLLINO (3.0.7)
+      - Voltage Reference (1.2.2)

@@ -18,6 +18,7 @@ installed with the Arduino IDE library manager.
 [Installing libraries | Arduino Documentation](Installing libraries)
 
 - [AccelStepper](https://www.arduino.cc/reference/en/libraries/accelstepper/)
+- [VoltageReference](https://www.arduino.cc/reference/en/libraries/voltage-reference/)
 - [Controllino](https://www.arduino.cc/reference/en/libraries/controllino/) (if using Controllino)
 
 ### Boards

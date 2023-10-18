@@ -1,64 +1,48 @@
 #include <Arduino.h>
-// Install AccelStepper: Tools > Manage libraries > Search for and install "AccelStepper"
+
 #include <AccelStepper.h>
-// Install Controllino: Tools > Manage libraries > Search for and install "Controllino"
-// Install and target board: See https://www.controllino.com/wp-content/uploads/2023/07/CONTROLLINO-Instruction-Manual-V1.3-2023-05-15.pdf
 #include <Controllino.h>
+#include <VoltageReference.h>
 
-
-//#define DEBUG
-
-//#define USE_STEPPER_ENABLE_PIN
-
-// Set motor
-//#define E3D_HEMERA
-#define MICRO_SWISS_DD
+#include "DirectionController.h"
 
 // SETTINGS
-const int HOTEND_TEMP_DEGREES_C = 210;
+const int HOTEND_TEMP_DEGREES_C = 180;
 const int EXTRUDER_RPM = 60;
+
+// #define DEBUG
+
+// #define USE_STEPPER_ENABLE_PIN
+
+// Set motor
+// #define E3D_HEMERA
+#define MICRO_SWISS_DD
 
 // PINS
 
 // Comm pins
 const int DI_ROBOT_HEAT_UP_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01;
 const int DI_ROBOT_RUN_BACKWARDS_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_02;
+    CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_02;
 const int DI_ROBOT_RUN_FORWARD_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_03;
+    CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_03;
 
 // Stepper motor pins
 #ifdef USE_STEPPER_ENABLE_PIN
-const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01;  // ENA - Enable when 0, disable when 1
+const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01;
 #endif
-const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03;   // DIR - Direction
-const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02;  // STP/PUL - Step, Pulse
+const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03;
+const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02;  // Step/Pulse
 
 // hotend pins
 const int DO_HEATING_PIN = CONTROLLINO_SCREW_TERMINAL_RELAY_04;
 const int AI_THERMISTOR_PIN = CONTROLLINO_PIN_HEADER_ANALOG_ADC_IN_00;
 
-// LED
-#ifdef Controllino_h
-const int DO_STEPPER_DEBUG_LED = CONTROLLINO_D0;
-#else
-const int DO_STEPPER_DEBUG_LED = LED_BUILTIN;
-#endif
-
-const unsigned long LED_INTERVAL = 1000;  // interval at which to blink (milliseconds)
-unsigned long g_led_previous_millis = 0;
-int g_LED_blink_state = LOW;
-
 // THERMISTOR
-const long TEMP_CONTROL_INTERVAL_MILLIS = 2000;  // interval at which to check temperature
-
-const float THERMISTOR_SETUP_FIXED_R1_OHM = 4700.0;  // 4k7 Ohm reference resistor
-
-enum AnalogReferenceType { AREF_DEFAULT,
-                           AREF_INTERNAL,
-                           AREF_EXTERNAL
-};
-const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
+// interval at which to check temperature
+const uint16_t TEMP_CONTROL_INTERVAL_MILLIS = 1000;
+// 4k7 Ohm reference resistor
+const uint32_t THERMISTOR_SETUP_FIXED_R1_OHM = 4700;
 
 // Obtained Steinhart-Hart values from:
 // https://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm
@@ -68,9 +52,12 @@ const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 // 353700           |   0
 //   5556           | 100
 //   439.3          | 200
-const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04, SH_C = 0.7066084133e-07;
+const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04,
+            SH_C = 0.7066084133e-07;
 
-unsigned long g_temp_previous_millis = 0;
+uint32_t g_temp_previous_millis = 0;
+float g_temperature = 999.9;
+uint16_t g_thermistor_target_analog_value = 1023;
 
 const float STEP_ANGLE_DEGREES = 1.8;
 
@@ -84,51 +71,32 @@ const float GEAR_RATIO = 1.0;
 #error "Please define a motor configuration!"
 #endif
 
-const int MICROSTEP_MULTIPLIER = 8;
+const uint8_t MICROSTEP_MULTIPLIER = 8;
 const bool STEPPER_INVERT_DIR = true;
 
-const int MAX_STEPS_PER_SEC = 3200;
+const uint16_t MAX_STEPS_PER_SEC = 3200;
 
 // Create a new instance of the AccelStepper class:
-AccelStepper g_stepper = AccelStepper(AccelStepper::DRIVER, DO_STEP_PIN, DO_DIR_PIN);
+AccelStepper g_stepper =
+    AccelStepper(AccelStepper::DRIVER, DO_STEP_PIN, DO_DIR_PIN);
 
-// Get the reference voltage based on the current analog reference type
-float getReferenceVoltage() {
-  if (ANALOG_REFERENCE_TYPE == INTERNAL) {
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__) || defined(__AVR_ATmega328PB__)
-    return 1.1;  // 1.1V for ATmega328P, ATmega168, and ATmega328PB (Arduino Uno, Nano, and Pro Mini 5V)
-#elif defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    return 1.1;  // 1.1V for ATmega32U4, ATmega1280, and ATmega2560 (Arduino Leonardo, Mega 2560)
-#else
-    return 3.3;  // 3.3V for other 3.3V boards
-#endif
-  } else if (ANALOG_REFERENCE_TYPE == DEFAULT) {
-#if defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    return 5.0;  // 5.0V for ATmega32U4, ATmega1280, and ATmega2560 (Arduino Leonardo, Mega 2560)
-#else
-    return 3.3;  // 3.3V for other 3.3V boards
-#endif
-  } else {
-    // For external reference, set the voltage manually (e.g., 3.3V or 5V)
-    return 3.3;
-  }
-}
+uint16_t g_reference_voltage_millivolt = 0;
+VoltageReference g_VRef;
 
 float readThermistorTemperature() {
   // TODO: Replace with <Thermistor.h>?
-  // Read the analog value (0-1023) from the thermistor pin
-  int analogValue = analogRead(AI_THERMISTOR_PIN);
+  uint16_t analogValue = analogRead(AI_THERMISTOR_PIN);
 
-  float referenceVoltage = getReferenceVoltage();
-
-  // Convert the analog value to voltage (using the internal reference voltage)
-  float Vout = (analogValue * referenceVoltage) / 1023.0;
+  uint32_t Vout = (analogValue * g_reference_voltage_millivolt) / 1023;
 
   // Calculate the thermistor resistance
-  float thermistor_ohm = THERMISTOR_SETUP_FIXED_R1_OHM * (referenceVoltage / Vout - 1.0);
+  float thermistor_ohm = THERMISTOR_SETUP_FIXED_R1_OHM *
+                         (g_reference_voltage_millivolt / Vout - 1.0);
 
-  // Convert resistance to temperature using the Steinhart-Hart equation coefficients (c1, c2, c3)
-  float T = 1.0 / (SH_A + SH_B * log(thermistor_ohm) + SH_C * pow(log(thermistor_ohm), 3));
+  // Convert resistance to temperature using the Steinhart-Hart equation
+  // coefficients (c1, c2, c3)
+  float T = 1.0 / (SH_A + SH_B * log(thermistor_ohm) +
+                   SH_C * pow(log(thermistor_ohm), 3));
 
   // Convert temperature from Kelvin to Celsius
   float Tc = T - 273.15;
@@ -136,7 +104,9 @@ float readThermistorTemperature() {
   return Tc;
 }
 
-float rpm_to_steps_per_sec(float rpm, float step_angle_degrees, float microstep_multiplier = 1.0, float gear_ratio = 1.0) {
+float rpm_to_steps_per_sec(float rpm, float step_angle_degrees,
+                           float microstep_multiplier = 1.0,
+                           float gear_ratio = 1.0) {
   float steps_per_rev = 360.0 / step_angle_degrees;
 
   steps_per_rev = steps_per_rev * microstep_multiplier;
@@ -149,35 +119,30 @@ float rpm_to_steps_per_sec(float rpm, float step_angle_degrees, float microstep_
   return steps_per_sec;
 }
 
-const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DEGREES, MICROSTEP_MULTIPLIER, GEAR_RATIO));
+const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(
+    EXTRUDER_RPM, STEP_ANGLE_DEGREES, MICROSTEP_MULTIPLIER, GEAR_RATIO));
 
 void setup() {
-  analogReference(ANALOG_REFERENCE_TYPE);
+  // Leave on default unless internal or external is required
+  analogReference(DEFAULT);
+  g_VRef.begin();
+  g_reference_voltage_millivolt = g_VRef.readVcc();
 
 #ifdef USE_STEPPER_ENABLE_PIN
   g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
 #endif
+
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR);
   g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
 
-  pinMode(DO_STEPPER_DEBUG_LED, OUTPUT);
-  digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
-
-
   // setup robot input pin
-  pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
+  pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT);
+  pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT);
+  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT);
 
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
   digitalWrite(DO_HEATING_PIN, LOW);
-
-  pinMode(AI_THERMISTOR_PIN, INPUT);
-
-  // led
-  pinMode(DO_STEPPER_DEBUG_LED, OUTPUT);
-  digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
 
 #ifdef DEBUG
   Serial.begin(9600);
@@ -185,25 +150,20 @@ void setup() {
 }
 
 void loop() {
+  Direction dir =
+      determineDirection(DI_ROBOT_RUN_BACKWARDS_PIN, DI_ROBOT_RUN_FORWARD_PIN);
+  int16_t signed_steps_per_sec = 0;
 
-  bool forwards = digitalRead(DI_ROBOT_RUN_FORWARD_PIN) == HIGH;
-  bool backwards = digitalRead(DI_ROBOT_RUN_BACKWARDS_PIN) == HIGH;
-
-  int signed_steps_per_sec = 0;  // Defaults to 0
-
-  if (forwards && !backwards) {
-    signed_steps_per_sec = 1 * STEPS_PER_SEC;
-    digitalWrite(DO_STEPPER_DEBUG_LED, HIGH);
-  } else if (!forwards && backwards) {
-    signed_steps_per_sec = -1 * STEPS_PER_SEC;
-    if (millis() - g_led_previous_millis >= LED_INTERVAL) {
-      g_led_previous_millis = millis();
-      g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
-      digitalWrite(DO_STEPPER_DEBUG_LED, g_LED_blink_state);
-    }
-  } else {  // both false or both true
-    digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
-    // don't touch speed
+  switch (dir) {
+    case FORWARD:
+      signed_steps_per_sec = 1 * STEPS_PER_SEC;
+      break;
+    case BACKWARD:
+      signed_steps_per_sec = -1 * STEPS_PER_SEC;
+      break;
+    case STOP:
+      // No change in speed
+      break;
   }
 
   g_stepper.setSpeed(signed_steps_per_sec);
@@ -212,27 +172,29 @@ void loop() {
 
   bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
 
-  // make sure that heater is off when signal is low
-  if (!heat_up) {
-    digitalWrite(DO_HEATING_PIN, LOW);
-  } else {  // if signal is high
-    unsigned long current_millis = millis();
-
-    // and enough time has passed since last check
-    if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
-      g_temp_previous_millis = millis();
-
-      // Read the thermistor temperature
-      float temperature = readThermistorTemperature();
-
+  // Only check temperature if TEMP_CONTROL_INTERVAL_MILLIS has passed
+  // This is because the check is not very fast
+  if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
+    g_temp_previous_millis = millis();
+    g_temperature = readThermistorTemperature();
 #ifdef DEBUG
-      Serial.print("T:");
-      Serial.println(temperature);
+    Serial.print("Speed:");
+    Serial.print(signed_steps_per_sec);
+    Serial.println(",");
+    Serial.print("Current_temp:");
+    Serial.print(g_temperature);
+    Serial.println(",");
+    Serial.print("Target_temp:");
+    Serial.println(heat_up ? HOTEND_TEMP_DEGREES_C : 0);
 #endif
+  }
 
-      // TODO: Add PID controller and send PWM to MOSFET
-      int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
-      digitalWrite(DO_HEATING_PIN, pinstate);
-    }
+  if (!heat_up) {
+    // make sure that heater is off when signal is low
+    digitalWrite(DO_HEATING_PIN, LOW);
+  } else {
+    // but if signal is high:
+    uint8_t pinstate = g_temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
+    digitalWrite(DO_HEATING_PIN, pinstate);
   }
 }
