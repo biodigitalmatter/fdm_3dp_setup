@@ -1,6 +1,6 @@
 [submodule "wiring/lth2400_robban_io_wiring"]
 	path = wiring/lth2400_robban_io_wiring
 	url = git@gitlab.control.lth.se:robotlab/lth2400_robban_io_wiring.git
-[submodule "wiring/digital_signal_24V_to_5V_breakout"]
-	path = wiring/digital_signal_24V_to_5V_breakout
-	url = git@github.com:biodigitalmatter/digital_signal_24V_to_5V_breakout
+[submodule "wiring/fdm_3dp_thermistor_breakout"]
+	path = wiring/fdm_3dp_thermistor_breakout
+	url = git@github.com:biodigitalmatter/fdm_3dp_thermistor_breakout.git
