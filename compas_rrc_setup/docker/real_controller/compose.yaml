@@ -2,7 +2,7 @@
 version: '3'
 services:
   ros-master:
-    image: compasrrc/compas_rrc_driver:latest
+    image: compasrrc/compas_rrc_driver:1.1.3
     container_name: ros-master
     environment:
       - ROS_HOSTNAME=ros-master
@@ -13,7 +13,7 @@ services:
       - roscore
 
   ros-bridge:
-    image: compasrrc/compas_rrc_driver:latest
+    image: compasrrc/compas_rrc_driver:1.1.3
     container_name: ros-bridge
     environment:
       - ROS_HOSTNAME=ros-bridge
@@ -30,7 +30,7 @@ services:
       - unregister_timeout:=28800      # This horribly long timeout of 8 hours is to workaround this issue: https://github.com/RobotWebTools/rosbridge_suite/issues/138
 
   abb-driver:
-    image: compasrrc/compas_rrc_driver:latest
+    image: compasrrc/compas_rrc_driver:1.1.3
     container_name: abb-driver
     environment:
       - ROS_HOSTNAME=abb-driver

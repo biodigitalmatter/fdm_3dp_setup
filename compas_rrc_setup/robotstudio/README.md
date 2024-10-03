@@ -20,7 +20,7 @@ server whenever you run Robotstudio, unless you "check-out" a license[^footnote-
 ## Setting up robot station
 
 There's a [prepared "pack-and-go" file that you can "unpack-and-work" with in
-this directory](V_LTH2400_RW612.rspag).
+this directory](`V_LTH2400_RW612_compas_rrc.rspag`).
 
 Before unpacking though you will need to make sure that you have the correct
 RobotWare version installed.
