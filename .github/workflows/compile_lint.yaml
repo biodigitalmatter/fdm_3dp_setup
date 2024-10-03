@@ -1,0 +1,20 @@
+on: [push, pull_request]
+jobs:
+  compile_lint:
+    strategy:
+      matrix:
+        sketch_dir:
+          - "firmware/stepper_heater"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+      - name: Compile sketch ${{matrix.sketch_dir}}
+        run: arduino-cli compile
+        working-directory: ${{matrix.sketch_dir}}
+      - name: Lint sketch ${{matrix.sketch_dir}}
+        uses: arduino/arduino-lint-action@v1        
+        with:
+          path: ${{matrix.sketch_dir}}
+
