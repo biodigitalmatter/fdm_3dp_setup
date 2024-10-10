@@ -2,4 +2,5 @@
 
 For LTH Robotlab.
 
-- [Using compas_rrc](./compas_rrc_setup/)
+- [RobotStudio setup](./robotstudio/)
+- [compas_rrc setup](./compas_rrc_setup/)

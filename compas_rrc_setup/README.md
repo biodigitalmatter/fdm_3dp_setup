@@ -43,4 +43,4 @@ controller](/docker/virtual_controller/compose.yml) or [real controller
 
 ## Slice and run robot
 
-See [slice_and_print.ghx](/slice_and_print.ghx)
+See [slice_and_print.ghx](./slice_and_print.ghx)

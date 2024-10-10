@@ -1,22 +1,21 @@
 # Hardware setup
 
-## Extruder
+## Extruder parts
 
-* Direct drive setup
-* 24V
-* E3D SuperVolcano hotend
+* [Direct drive extruder](https://www.3dprima.com/spare-parts-accessories/upgrades/hot-end-upgrades/primacreator-direct-drive-extruder-for-cr10-ender-3-series_27215_8676)
+* [E3D Standard Heater Cartridge - 24V - 40W](https://www.3dprima.com/spare-parts-accessories/manufacturers/e3d/e3d-standard-heater-cartridge-24v-40w_28152_9637)
+* [E3D Thermistor Cartridge](https://www.3dprima.com/spare-parts-accessories/manufacturer/e3d/e3d-thermistor-cartridge_28155_9640)
+* [PrimaCreator MK8 brass nozzle 0.8 mm](https://www.3dprima.com/se/parts/spare-parts/general/mk8-brass-nozzle-0-8-x-1_22708_3747)
 
-### Resources
-* [Hemera/Hemera XS – E3D Help Centre](https://e3d-online.zendesk.com/hc/en-us/sections/6157569994909-Hemera-Hemera-XS)
-* [Hemera
-  datasheet](https://e3d-online.zendesk.com/hc/en-us/article_attachments/360018157138)
-[[https://e3d-online.zendesk.com/hc/en-us/sections/6157591327133-SuperVolcano]
-* [SuperVolcano – E3D Help Centre](https://e3d-online.zendesk.com/hc/en-us/sections/6157591327133-SuperVolcano)
-* [SuperVolcano datasheet](https://e3d-online.zendesk.com/hc/en-us/article_attachments/360016249778)
+## Heater and temperature control
+
+* [Controllino Mini](https://www.controllino.com/product/controllino-mini/)
+* [Stepper motor driver]()
+
 
 ## Bracket
 
-[fdm_extruder_bracket.step](fdm_extruder_bracket.step)
+* [fdm_extruder_bracket.step](./fdm_extruder_bracket.step)
 
 ## Toolchanger
 
