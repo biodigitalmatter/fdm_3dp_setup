@@ -34,4 +34,12 @@ Copy this into your tool definition (that should preferably be in the `user` mod
 ```
 TASK PERS tooldata *TOOLNAME*:=[TRUE,[[*X*, *Y*, *Z*],[0.866025,0,-0.5,0]],[2,[0,0,100],[1,0,0,0],1,1,1]];
 ```
-The relevant part is the [quaternion]() `[0.866025,0,-0.5,0]`.
+
+The relevant part is the [quaternion](https://en.wikipedia.org/wiki/Quaternion) `[0.866025,0,-0.5,0]`.
+
+The best way to change modules like this on the robot is to: 
+
+1. Connect to the robot with an ethernet cable to the port on the front of the cabinet and in RobotStudio connect to 192.168.125.1 (or `One-click connect`) in the Controller ribbon.
+1. Request write access from the `RAPID` ribbon (confirm on the flexpendant).
+1. Find the relevant file in the right hand side tree (`RAPID` > `T_ROB1` > `user`).
+1. `Apply changes` in the `RAPID` ribbon when done.
