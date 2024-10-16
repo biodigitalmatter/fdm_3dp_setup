@@ -1,4 +1,4 @@
-# Hardware setup
+# Tool
 
 ## Extruder parts
 
@@ -22,3 +22,16 @@
 Attach after 30 degree adapter, see [30_degree_robot_tool_adapter.obj](30_degree_robot_tool_adapter.obj)
 
 [Tool changer TC20-4 - Robot System Products](https://robotsystemproducts.com/product/tool-changer-tc20-4/)
+
+# Tool defintion in RAPID
+
+The tool center point (TCP) can be found using the 4 point calibration method. (`Jogging` > `Tool` > Select tool > `Edit` > `Define` on the FlexPendant).
+
+The orientation needs to be considered as well. The bracket points the extruder in 90 degress and then there's the 30 degree adapter to account for as well.
+
+Copy this into your tool definition (that should preferably be in the `user` module or your RAPID script from grasshopper)
+
+```
+TASK PERS tooldata *TOOLNAME*:=[TRUE,[[*X*, *Y*, *Z*],[0.866025,0,-0.5,0]],[2,[0,0,100],[1,0,0,0],1,1,1]];
+```
+The relevant part is the [quaternion]() `[0.866025,0,-0.5,0]`.
