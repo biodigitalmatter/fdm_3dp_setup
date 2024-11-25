@@ -1,6 +1,23 @@
-# ABB Robotstudio setup
+# RAPID program setup
 
-## Install ABB Robotstudio
+## Load programs on robot controller
+
+After saving a program from [planes_to_3dp_rapid_program.ghx](./planes_to_3dp_rapid_program.ghx) you will end up with two files. One called "your_filename.mod" and one called "your_filename.pgf".
+
+To run these on the robot:
+
+1. Copy .mod and .pgf to a USB stick
+1. Plug in the USB stick into the FlexPendant
+1. Go to `Production Window`
+1. Click `Load program` in bottom left corner.
+1. Navigate to the USB stick (press the directory up button until you see `/hddn` and `/usbn` where `n` is number of units)
+1. Click on the entry for the USB drive and select "your_filename.pgf"
+1. After some popups, press `PP to main`
+1. Run the program!
+
+## ABB Robotstudio setup for tests and simulation
+
+### Install ABB Robotstudio
 
 [Download installer for ABB RobotStudio](https://new.abb.com/products/robotics/robotstudio)
 
@@ -17,7 +34,7 @@ VPN](https://luservicedesk.service-now.com/support_en?id=kb_article_en&sys_id=3f
 If you use the license server at LTH you will need to have access to the license
 server whenever you run Robotstudio, unless you "check-out" a license[^footnote-robotstudio-check-out].
 
-## Setting up robot station
+### Setting up robot station
 
 There's a [prepared "pack-and-go" file that you can "unpack-and-work" with in
 this directory](`V_LTH2400_RW612_compas_rrc.rspag`).
@@ -38,7 +55,7 @@ status: 1/1" in green in the bottom right controller.
 You can find manuals and tutorials under `File > Help`. Both the RobotStudio
 help here as well as the manuals for IRC5 are helpful.
 
-## Important for non-compas_rrc users!
+### Important for non-compas_rrc users!
 
 Disable all other tasks than T_ROB1!
 
@@ -46,7 +63,7 @@ In RobotStudio, uncheck everything else in Controller > Selected Tasks.
 
 On the FlexPendant, click the cog wheels in the bottom right and select the first icon with a circle and three nodes. Uncheck everything else.
 
-## Steps to simulate
+### Steps to simulate
 
 1. Generate RAPID-code using [provided grasshopper file](../grasshopper/planes_to_3dp_rapid_program.ghx)
 1. Start solution created from [pack-and-go file](./V_LTH2400_RW612_compas_rrc.rspag). You only need to "unpack and work" once.
@@ -59,13 +76,13 @@ On the FlexPendant, click the cog wheels in the bottom right and select the firs
 1. Click `PP to main`
 1. Press play to run the program.
 
-### Troubleshooting
+#### Troubleshooting
 
 If you get errors for more than one main procedure, rename the other main.
 
 Slow? Open Options, go to Simulation Clock and check "As fast as possible".
 
-## Footnotes
+### Footnotes
 
 [^footnote-robotstudio-check-out]:
     You can check out a license for up to 90

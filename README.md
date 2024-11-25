@@ -2,5 +2,5 @@
 
 For LTH Robotlab.
 
-- [RobotStudio setup](./robotstudio/)
+- [RAPID program setup](./rapid_program_setup/)
 - [compas_rrc setup](./compas_rrc_setup/)
