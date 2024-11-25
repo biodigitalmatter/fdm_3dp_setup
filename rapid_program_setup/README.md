@@ -10,7 +10,7 @@ Save work objects and tool objects to the USER module so they don't get overwrit
 
 ### Load programs on robot controller
 
-After saving a program from [planes_to_3dp_rapid_program.ghx](./planes_to_3dp_rapid_program.ghx) you will end up with two files. One called "your_filename.mod" and one called "your_filename.pgf".
+After saving a program from <a href="https://raw.githubusercontent.com/biodigitalmatter/fdm_3dp_setup/refs/heads/main/rapid_program_setup/planes_to_3dp_rapid_program.ghx" download>planes_to_3dp_rapid_program.ghx</a> you will end up with two files. One called "your_filename.mod" and one called "your_filename.pgf".
 
 To run these on the robot:
 
