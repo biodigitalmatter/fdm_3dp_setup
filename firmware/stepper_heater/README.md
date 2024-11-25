@@ -3,7 +3,7 @@
 The firmware for the Arduino controlling the stepper motor and heater can
 programmed using Arduino IDE.
 
-[Downloading and installing the Arduino IDE 2](https://docs.arduino.cc/software/ide-v2/tutorials/getting-started/ide-v2-downloading-and-installing)
+[Downloading and installing the Arduino IDE 2 | Arduino Documentation](https://docs.arduino.cc/software/ide-v2/tutorials/getting-started/ide-v2-downloading-and-installing)
 
 There are additional notes here on how to set it up for Controllino Mini since
 that's used in the setup. See [Controllino User Manual](https://www.controllino.com/wp-content/uploads/2023/07/CONTROLLINO-Instruction-Manual-V1.3-2023-05-15.pdf) for more details.
@@ -15,7 +15,7 @@ that's used in the setup. See [Controllino User Manual](https://www.controllino.
 The stepper_heater firmware requires a few libraries. They can be
 installed with the Arduino IDE library manager.
 
-[Installing libraries | Arduino Documentation](Installing libraries)
+[Installing libraries | Arduino Documentation](https://docs.arduino.cc/software/ide-v2/tutorials/ide-v2-installing-a-library/)
 
 - [AccelStepper](https://www.arduino.cc/reference/en/libraries/accelstepper/)
 - [Controllino](https://www.arduino.cc/reference/en/libraries/controllino/) (if using Controllino)
