@@ -5,15 +5,17 @@
 // Install and target board: See https://www.controllino.com/wp-content/uploads/2023/07/CONTROLLINO-Instruction-Manual-V1.3-2023-05-15.pdf
 #include <Controllino.h>
 
-#define DEBUG
+
+//#define DEBUG
+
 //#define USE_STEPPER_ENABLE_PIN
 // Set motor
 //#define E3D_HEMERA
 #define MICRO_SWISS_DD
 
 // SETTINGS
-const int HOTEND_TEMP_DEGREES_C = 160; // results in good flow for PLA (temperature reading is off)
-const int EXTRUDER_RPM = 60;
+const int HOTEND_TEMP_DEGREES_C = 180;
+const int EXTRUDER_RPM = 30;
 
 // PINS
 
@@ -59,7 +61,7 @@ enum AnalogReferenceType { AREF_DEFAULT,
                            AREF_INTERNAL,
                            AREF_EXTERNAL
 };
-const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_DEFAULT;
+const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 
 // Obtained Steinhart-Hart values from:
 // https://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm
