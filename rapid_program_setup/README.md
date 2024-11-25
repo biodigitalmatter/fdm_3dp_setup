@@ -1,6 +1,14 @@
-# RAPID program setup
+# Setup
 
-## Load programs on robot controller
+## Work and tool objects
+
+Set up work object based on the print surface.
+
+Save work objects and tool objects to the USER module so they don't get overwritten.
+
+## RAPID program setup
+
+### Load programs on robot controller
 
 After saving a program from [planes_to_3dp_rapid_program.ghx](./planes_to_3dp_rapid_program.ghx) you will end up with two files. One called "your_filename.mod" and one called "your_filename.pgf".
 
@@ -69,7 +77,7 @@ On the FlexPendant, click the cog wheels in the bottom right and select the firs
 1. Start solution created from [pack-and-go file](./V_LTH2400_RW612_compas_rrc.rspag). You only need to "unpack and work" once.
 1. In the `RAPID` view in the controller tree to the left:
     1. Expand `RAPID`
-    1. Right-click `T_ROB1` and select `Load module`. Select your module file.
+    1. Right-click `T_ROB1` and select `Load program`. Select your program file.
     1. Click through the prompts.
 1. Click `Controller > FlexPendant` ribbon.
 1. Open the production view.
@@ -78,9 +86,7 @@ On the FlexPendant, click the cog wheels in the bottom right and select the firs
 
 #### Troubleshooting
 
-If you get errors for more than one main procedure, rename the other main.
-
-Slow? Open Options, go to Simulation Clock and check "As fast as possible".
+* Slow? Open Options, go to Simulation Clock and check "As fast as possible".
 
 ### Footnotes
 
