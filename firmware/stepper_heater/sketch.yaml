@@ -4,8 +4,8 @@ profiles:
     platforms:
       - platform: CONTROLLINO_Boards:avr (3.1.3)
         platform_index_url: https://raw.githubusercontent.com/CONTROLLINO-PLC/CONTROLLINO_Library/master/Boards/package_ControllinoHardware_index.json
-      - platform: arduino:avr (1.8.3)
+      - platform: arduino:avr (1.8.6)
     libraries:
-      - CONTROLLINO (3.0.9)
+      - CONTROLLINO (3.0.10)
       - AccelStepper (1.64)
 default_profile: controllino_mini
