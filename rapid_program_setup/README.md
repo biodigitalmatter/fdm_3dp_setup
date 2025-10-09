@@ -69,7 +69,7 @@ help here as well as the manuals for IRC5 are helpful.
 
 Disable all other tasks than T_ROB1!
 
-In RobotStudio, uncheck everything else in Controller > Selected Tasks.
+In RobotStudio, uncheck everything else in `RAPID > Selected Tasks`.
 
 On the FlexPendant, click the cog wheels in the bottom right and select the first icon with a circle and three nodes. Uncheck everything else.
 
