@@ -47,7 +47,7 @@ server whenever you run Robotstudio, unless you "check-out" a license[^footnote-
 ### Setting up robot station
 
 There's a [prepared "pack-and-go" file that you can "unpack-and-work" with in
-this directory](./V_LTH2400_RW612_compas_rrc.rspag).
+this directory](./V_LTH2400_RW612_compas_rrc.rspag), download it by following the link and then pressing the button titled "Raw". This will actually download the file, instead of trying to preview it.
 
 Before unpacking though you will need to make sure that you have the correct
 RobotWare version installed.
