@@ -6,7 +6,7 @@
 #include <Controllino.h>
 
 
-//#define DEBUG
+#define DEBUG
 
 //#define USE_STEPPER_ENABLE_PIN
 // Set motor
@@ -19,27 +19,30 @@ const int EXTRUDER_RPM = 30;
 
 // PINS
 
+#ifndef Controllino_h
+#error "Pins only setup for Controllino for now."
+#endif
+
 // Pin comment:
-// "Arduino name" "Arduino value (#DEFINE A0 14)" "Atmega pin name" "PHYSICAL PIN" "Controllino function"
+// Arduino Uno name, port pin, physical pin, Controllino function
+// https://www.controllino.com/wp-content/uploads/2023/05/CONTROLLINO_MINI_Pinout_Table.pdf
+// https://github.com/CONTROLLINO-PLC/CONTROLLINO_Library/blob/master/Controllino.h
 
 // Comm pins
-const int DI_ROBOT_HEAT_UP_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01;                        // A1 15 PC1 24 Analog 1
-const int DI_ROBOT_RUN_BACKWARDS_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_02;                        // A2 16 PC2 25 Analog 2
-const int DI_ROBOT_RUN_FORWARD_PIN =
-  CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_03;                        // A3 17 PC3 26 Analog 3
+const int DI_HEAT_UP_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01;        // A1, PC1, 24, Analog 1
+const int DI_RUN_BACKWARDS_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_02;  // A2, PC2, 25, Analog 2
+const int DI_RUN_FORWARD_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_03;    // A3, PC3, 26, Analog 3
 
 // Stepper motor pins
 #ifdef USE_STEPPER_ENABLE_PIN
-const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_01;    // D5  5 PD5  9 Digital 1
+const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_05;             // D9, PB1, 13, Digital 5
 #endif
-const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_02;         // D6  6 PD6 10 Digital 2
-const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_03;          // D7  7 PD7 11 Digital 3
+const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_06;                  // A4, PC4, 27, Digital 6/SDA
+const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_07;                   // A5, PC5, 28, Digital 7/SCL
 
 // hotend pins
-const int DO_HEATING_PIN = CONTROLLINO_SCREW_TERMINAL_RELAY_04;        // D8  8 PB0 12 Relay 4
-const int AI_THERMISTOR_PIN = CONTROLLINO_PIN_HEADER_ANALOG_ADC_IN_00; // A0 14 PC0 23 Analog 0
+const int DO_HEATING_PIN = CONTROLLINO_SCREW_TERMINAL_RELAY_03;                 // D7, PD7, 11, D3 (Relay 3)
+const int AI_THERMISTOR_PIN = CONTROLLINO_PIN_HEADER_ANALOG_ADC_IN_00;          // A0, PC0, 23, Analog 0
 
 // LED
 #ifdef Controllino_h
@@ -66,12 +69,13 @@ const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 // Obtained Steinhart-Hart values from:
 // https://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm
 // https://download.lulzbot.com/retail_parts/Completed_Parts/100k_Semitec_NTC_Thermistor_235mm_KT-CP0110/GT-2-glass-thermistors.pdf
-// beta-value (at 25 degrees): 4267K
+// https://smoothieware.org/temperaturecontrol-thermistor-choice
+// beta-value (at 25 degrees): 4375K
 // resistance (Ohm) | degrees (C)
 // 353700           |   0
-//   5556           | 100
 //   439.3          | 200
-const float SH_A = 0.8097317731e-03, SH_B = 2.11635527e-04, SH_C = 0.7066084133e-07;
+//   125.8          | 270
+const float SH_A = 0.8109916996e-03, SH_B = 2.113966629e-04, SH_C = 0.7152004502e-07;
 
 unsigned long g_temp_previous_millis = 0;
 
@@ -122,6 +126,12 @@ float readThermistorTemperature() {
   // Read the analog value (0-1023) from the thermistor pin
   int analogValue = analogRead(AI_THERMISTOR_PIN);
 
+#ifdef DEBUG
+    Serial.print("V:");
+    Serial.print(analogValue);
+    Serial.print(",");
+#endif
+
   float referenceVoltage = getReferenceVoltage();
 
   // Convert the analog value to voltage (using the internal reference voltage)
@@ -135,6 +145,11 @@ float readThermistorTemperature() {
 
   // Convert temperature from Kelvin to Celsius
   float Tc = T - 273.15;
+
+#ifdef DEBUG
+  Serial.print("T:");
+  Serial.println(Tc);
+#endif
 
   return Tc;
 }
@@ -168,9 +183,9 @@ void setup() {
 
 
   // setup robot input pin
-  pinMode(DI_ROBOT_HEAT_UP_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_RUN_BACKWARDS_PIN, INPUT_PULLUP);
-  pinMode(DI_ROBOT_RUN_FORWARD_PIN, INPUT_PULLUP);
+  pinMode(DI_HEAT_UP_PIN, INPUT_PULLUP);
+  pinMode(DI_RUN_BACKWARDS_PIN, INPUT_PULLUP);
+  pinMode(DI_RUN_FORWARD_PIN, INPUT_PULLUP);
 
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
@@ -189,16 +204,18 @@ void setup() {
 
 void loop() {
 
-  bool forwards = digitalRead(DI_ROBOT_RUN_FORWARD_PIN) == HIGH;
-  bool backwards = digitalRead(DI_ROBOT_RUN_BACKWARDS_PIN) == HIGH;
+  bool forwards = digitalRead(DI_RUN_FORWARD_PIN) == HIGH;
+  bool backwards = digitalRead(DI_RUN_BACKWARDS_PIN) == HIGH;
 
-  int signed_steps_per_sec = 0;  // Defaults to 0
+  int signed_steps_per_sec = 0;
 
   if (forwards && !backwards) {
     signed_steps_per_sec = 1 * STEPS_PER_SEC;
     digitalWrite(DO_STEPPER_DEBUG_LED, HIGH);
   } else if (!forwards && backwards) {
     signed_steps_per_sec = -1 * STEPS_PER_SEC;
+
+    // blink when reversing
     if (millis() - g_led_previous_millis >= LED_INTERVAL) {
       g_led_previous_millis = millis();
       g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
@@ -213,29 +230,22 @@ void loop() {
 
   g_stepper.runSpeed();
 
-  bool heat_up = digitalRead(DI_ROBOT_HEAT_UP_PIN) == HIGH;
+  bool heat_up = digitalRead(DI_HEAT_UP_PIN) == HIGH;
 
-  // make sure that heater is off when signal is low
-  if (!heat_up) {
-    digitalWrite(DO_HEATING_PIN, LOW);
-  } else {  // if signal is high
-    unsigned long current_millis = millis();
+  if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
+    g_temp_previous_millis = millis();
 
-    // and enough time has passed since last check
-    if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
-      g_temp_previous_millis = millis();
+    float temperature = readThermistorTemperature();
 
-      // Read the thermistor temperature
-      float temperature = readThermistorTemperature();
-
-#ifdef DEBUG
-      Serial.print("T:");
-      Serial.println(temperature);
-#endif
-
+    if (heat_up) {
       // TODO: Add PID controller and send PWM to MOSFET
       int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
       digitalWrite(DO_HEATING_PIN, pinstate);
     }
+  }
+
+  // make sure that heater is off when signal is low
+  if (!heat_up) {
+    digitalWrite(DO_HEATING_PIN, LOW);
   }
 }
