@@ -14,9 +14,8 @@
 #define MICRO_SWISS_DD
 
 // SETTINGS
-const int HOTEND_TEMP_DEGREES_C = 180;
-const int EXTRUDER_RPM = 30;
-
+const int HOTEND_TEMP_DEGREES_C = 175;
+const int EXTRUDER_RPM = 20;
 // PINS
 
 #ifndef Controllino_h
@@ -63,7 +62,7 @@ const float THERMISTOR_SETUP_FIXED_R1_OHM = 4700.0;  // 4k7 Ohm reference resist
 enum AnalogReferenceType { AREF_DEFAULT,
                            AREF_INTERNAL,
                            AREF_EXTERNAL
-};
+                         };
 const AnalogReferenceType ANALOG_REFERENCE_TYPE = AREF_INTERNAL;
 
 // Obtained Steinhart-Hart values from:
@@ -127,9 +126,9 @@ float readThermistorTemperature() {
   int analogValue = analogRead(AI_THERMISTOR_PIN);
 
 #ifdef DEBUG
-    Serial.print("V:");
-    Serial.print(analogValue);
-    Serial.print(",");
+  Serial.print("V:");
+  Serial.print(analogValue);
+  Serial.print(",");
 #endif
 
   float referenceVoltage = getReferenceVoltage();
@@ -175,12 +174,12 @@ void setup() {
 #ifdef USE_STEPPER_ENABLE_PIN
   g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
 #endif
+
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR);
   g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
 
   pinMode(DO_STEPPER_DEBUG_LED, OUTPUT);
   digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
-
 
   // setup robot input pin
   pinMode(DI_HEAT_UP_PIN, INPUT_PULLUP);
