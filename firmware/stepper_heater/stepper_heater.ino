@@ -5,10 +5,8 @@
 // Install and target board: See https://www.controllino.com/wp-content/uploads/2023/07/CONTROLLINO-Instruction-Manual-V1.3-2023-05-15.pdf
 #include <Controllino.h>
 
-
 #define DEBUG
 
-//#define USE_STEPPER_ENABLE_PIN
 // Set motor
 //#define E3D_HEMERA
 #define MICRO_SWISS_DD
@@ -32,11 +30,10 @@ const int EXTRUDER_RPM = 20;
 const int DI_HEAT_UP_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_01;        // A1, PC1, 24, Analog 1
 const int DI_RUN_BACKWARDS_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_02;  // A2, PC2, 25, Analog 2
 const int DI_RUN_FORWARD_PIN = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_03;    // A3, PC3, 26, Analog 3
+const int DI_ROBOT_ESTOP_INVERTED = CONTROLLINO_SCREW_TERMINAL_DIGITAL_ADC_IN_04; // Error, define/function not existing
 
 // Stepper motor pins
-#ifdef USE_STEPPER_ENABLE_PIN
-const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_05;             // D9, PB1, 13, Digital 5
-#endif
+// const int DO_NC_ENABLE_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_05;             // D9, PB1, 13, Digital 5
 const int DO_STEP_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_06;                  // A4, PC4, 27, Digital 6/SDA
 const int DO_DIR_PIN = CONTROLLINO_PIN_HEADER_DIGITAL_OUT_07;                   // A5, PC5, 28, Digital 7/SCL
 
@@ -172,9 +169,9 @@ const int STEPS_PER_SEC = round(rpm_to_steps_per_sec(EXTRUDER_RPM, STEP_ANGLE_DE
 void setup() {
   analogReference(ANALOG_REFERENCE_TYPE);
 
-#ifdef USE_STEPPER_ENABLE_PIN
-  g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
-#endif
+  // TODO: Use enable pin
+  // g_stepper.setEnablePin(DO_NC_ENABLE_PIN);
+  // g_stepper.enableOutputs();
 
   g_stepper.setPinsInverted(/* directionInvert */ STEPPER_INVERT_DIR);
   g_stepper.setMaxSpeed(MAX_STEPS_PER_SEC);
@@ -186,6 +183,7 @@ void setup() {
   pinMode(DI_HEAT_UP_PIN, INPUT_PULLUP);
   pinMode(DI_RUN_BACKWARDS_PIN, INPUT_PULLUP);
   pinMode(DI_RUN_FORWARD_PIN, INPUT_PULLUP);
+  pinMode(DI_ESTOP_INVERTED, INPUT_PULLUP);
 
   // hotend pins
   pinMode(DO_HEATING_PIN, OUTPUT);
@@ -204,50 +202,60 @@ void setup() {
 
 void loop() {
 
-  bool forwards = digitalRead(DI_RUN_FORWARD_PIN) == HIGH;
-  bool backwards = digitalRead(DI_RUN_BACKWARDS_PIN) == HIGH;
+  bool emergency_stop = digitalRead(DI_ROBOT_ESTOP_INVERTED) == LOW;
 
-  int signed_steps_per_sec = 0;
-
-  if (forwards && !backwards) {
-    signed_steps_per_sec = 1 * STEPS_PER_SEC;
-    digitalWrite(DO_STEPPER_DEBUG_LED, HIGH);
-  } else if (!forwards && backwards) {
-    signed_steps_per_sec = -1 * STEPS_PER_SEC;
-
-    // blink when reversing
-    if (millis() - g_led_previous_millis >= LED_INTERVAL) {
-      g_led_previous_millis = millis();
-      g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
-      digitalWrite(DO_STEPPER_DEBUG_LED, g_LED_blink_state);
-    }
-  } else {  // both false or both true
-    digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
-    // don't touch speed
-  }
-
-  g_stepper.setSpeed(signed_steps_per_sec);
-
-  g_stepper.runSpeed();
-
-  bool heat_up = digitalRead(DI_HEAT_UP_PIN) == HIGH;
-  // make sure that heater is off when signal is low
-  if (!heat_up) {
+  if (emergency_stop) {
     digitalWrite(DO_HEATING_PIN, LOW);
-  } else {  // if signal is high
-    unsigned long current_millis = millis();
+    g_stepper.setSpeed(0);
+#ifdef DEBUG
+    Serial.print("Robot in ESTOP");
+#endif
+  } else {
 
-    // and enough time has passed since last check
-    if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
-      g_temp_previous_millis = millis();
+    bool forwards = digitalRead(DI_RUN_FORWARD_PIN) == HIGH;
+    bool backwards = digitalRead(DI_RUN_BACKWARDS_PIN) == HIGH;
 
-      // Read the thermistor temperature
-      float temperature = readThermistorTemperature();
+    int signed_steps_per_sec = 0;
 
-      // TODO: Add PID controller and send PWM to MOSFET
-      int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
-      digitalWrite(DO_HEATING_PIN, pinstate);
+    if (forwards && !backwards) {
+      signed_steps_per_sec = 1 * STEPS_PER_SEC;
+      digitalWrite(DO_STEPPER_DEBUG_LED, HIGH);
+    } else if (!forwards && backwards) {
+      signed_steps_per_sec = -1 * STEPS_PER_SEC;
+
+      // blink when reversing
+      if (millis() - g_led_previous_millis >= LED_INTERVAL) {
+        g_led_previous_millis = millis();
+        g_LED_blink_state = g_LED_blink_state == HIGH ? LOW : HIGH;
+        digitalWrite(DO_STEPPER_DEBUG_LED, g_LED_blink_state);
+      }
+    } else {  // both false or both true
+      digitalWrite(DO_STEPPER_DEBUG_LED, LOW);
+      // don't touch speed
     }
 
+    g_stepper.setSpeed(signed_steps_per_sec);
+
+    g_stepper.runSpeed();
+
+    bool heat_up = digitalRead(DI_HEAT_UP_PIN) == HIGH;
+    // make sure that heater is off when signal is low
+    if (!heat_up) {
+      digitalWrite(DO_HEATING_PIN, LOW);
+    } else {
+      unsigned long current_millis = millis();
+
+      // and enough time has passed since last check
+      if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
+        g_temp_previous_millis = millis();
+
+        // Read the thermistor temperature
+        float temperature = readThermistorTemperature();
+
+        // TODO: Add PID controller and send PWM to MOSFET
+        int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
+        digitalWrite(DO_HEATING_PIN, pinstate);
+      }
+    }
   }
 }
