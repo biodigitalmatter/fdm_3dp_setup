@@ -16,6 +16,7 @@
 // SETTINGS
 const int HOTEND_TEMP_DEGREES_C = 175;
 const int EXTRUDER_RPM = 20;
+
 // PINS
 
 #ifndef Controllino_h
@@ -230,21 +231,23 @@ void loop() {
   g_stepper.runSpeed();
 
   bool heat_up = digitalRead(DI_HEAT_UP_PIN) == HIGH;
+  // make sure that heater is off when signal is low
+  if (!heat_up) {
+    digitalWrite(DO_HEATING_PIN, LOW);
+  } else {  // if signal is high
+    unsigned long current_millis = millis();
 
-  if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
-    g_temp_previous_millis = millis();
+    // and enough time has passed since last check
+    if (millis() - g_temp_previous_millis > TEMP_CONTROL_INTERVAL_MILLIS) {
+      g_temp_previous_millis = millis();
 
-    float temperature = readThermistorTemperature();
+      // Read the thermistor temperature
+      float temperature = readThermistorTemperature();
 
-    if (heat_up) {
       // TODO: Add PID controller and send PWM to MOSFET
       int pinstate = temperature < HOTEND_TEMP_DEGREES_C ? HIGH : LOW;
       digitalWrite(DO_HEATING_PIN, pinstate);
     }
-  }
 
-  // make sure that heater is off when signal is low
-  if (!heat_up) {
-    digitalWrite(DO_HEATING_PIN, LOW);
   }
 }
