@@ -2,5 +2,10 @@
 
 For LTH Robotlab.
 
-- [RAPID program setup](./rapid_program_setup/)
-- [compas_rrc setup](./compas_rrc_setup/)
+## FRTN80 and FRTN85 resources MOVED
+
+Moved to [Canvas module](https://canvas.education.lu.se/courses/37285#271900)
+
+## COMPAS RRC
+
+[compas_rrc setup](./compas_rrc_setup/)
