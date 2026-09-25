@@ -4,7 +4,7 @@ For LTH Robotlab.
 
 ## FRTN80 and FRTN85 resources MOVED
 
-Moved to [Canvas module](https://canvas.education.lu.se/courses/37285#271900)
+Moved to [Canvas module](https://canvas.education.lu.se/courses/42995#309159)
 
 ## COMPAS RRC
 
